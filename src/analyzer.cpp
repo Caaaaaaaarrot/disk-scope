@@ -8,26 +8,46 @@
 
 namespace fs = std::filesystem;
 
-// ✅ 单位自适应
-std::string format_size(uintmax_t bytes) {
+struct SizeParts {
+    std::string value;
+    std::string unit;
+};
+
+// 单位自适应
+SizeParts format_size(uintmax_t bytes, int precision) {
     const double KB = 1024.0;
     const double MB = KB * 1024;
     const double GB = MB * 1024;
 
-    std::ostringstream oss;
-    oss << std::fixed << std::setprecision(2);
+    SizeParts out;
 
     if (bytes < KB) {
-        oss << bytes << " B";
+        out.value = std::to_string(bytes);
+        out.unit = "B";
     } else if (bytes < MB) {
-        oss << bytes / KB << " KB";
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(precision) << bytes / KB;
+        out.value = oss.str();
+        out.unit = "KB";
     } else if (bytes < GB) {
-        oss << bytes / MB << " MB";
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(precision) << bytes / MB;
+        out.value = oss.str();
+        out.unit = "MB";
     } else {
-        oss << bytes / GB << " GB";
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(precision) << bytes / GB;
+        out.value = oss.str();
+        out.unit = "GB";
     }
 
-    return oss.str();
+    return out;
+}
+
+void Analyzer::set_precision(int precision) {
+    if (precision >= 0) {
+        precision_ = precision;
+    }
 }
 
 std::shared_ptr<FileNode> Analyzer::analyze(const fs::path& path) {
@@ -100,15 +120,32 @@ void Analyzer::get_top_k_files(const std::shared_ptr<FileNode>& root, int k) {
 
     std::cout << "\nTop " << k << " largest files:\n\n";
 
-    for (int i = 0; i < result.size(); ++i) {
-        std::string name = result[i]->name;
+    std::vector<std::string> names;
+    std::vector<SizeParts> sizes;
+    names.reserve(result.size());
+    sizes.reserve(result.size());
+
+    std::size_t value_width = 0;
+    std::size_t unit_width = 0;
+    for (const auto& item : result) {
+        std::string name = item->name;
         if (name.length() > 28) {
             name = name.substr(0, 25) + "...";
         }
+        names.push_back(name);
 
-        std::cout << std::setw(3) << (i + 1) << ". "
-                  << std::setw(30) << std::left << name
-                  << std::setw(12) << std::right << format_size(result[i]->size)
+        SizeParts parts = format_size(item->size, precision_);
+        value_width = std::max(value_width, parts.value.length());
+        unit_width = std::max(unit_width, parts.unit.length());
+        sizes.push_back(parts);
+    }
+
+    for (int i = 0; i < result.size(); ++i) {
+        std::cout << std::right << std::setw(3) << (i + 1) << ". "
+                  << std::setw(30) << std::left << names[i]
+                  << std::setw(static_cast<int>(value_width) + 1) << std::right << sizes[i].value
+                  << " "
+                  << std::setw(static_cast<int>(unit_width)) << std::left << sizes[i].unit
                   << "\n";
     }
 }
@@ -140,14 +177,28 @@ void Analyzer::get_file_type_stats(const std::shared_ptr<FileNode>& root) {
                   return a.second > b.second;
               });
 
+    int limit = std::min<int>(10, vec.size());
+    std::vector<SizeParts> sizes;
+    sizes.reserve(limit);
+    std::size_t value_width = 0;
+    std::size_t unit_width = 0;
+    for (int i = 0; i < limit; ++i) {
+        SizeParts parts = format_size(vec[i].second, precision_);
+        value_width = std::max(value_width, parts.value.length());
+        unit_width = std::max(unit_width, parts.unit.length());
+        sizes.push_back(parts);
+    }
+
     std::cout << "\nFile type statistics:\n\n";
 
     int count = 0;
-    for (auto& [type, size] : vec) {
+    for (const auto& entry : vec) {
         if (count++ >= 10) break;
 
-        std::cout << std::setw(10) << std::left << type
-                  << std::setw(12) << std::right << format_size(size)
+        std::cout << std::setw(10) << std::left << entry.first
+                  << std::setw(static_cast<int>(value_width) + 1) << std::right << sizes[count - 1].value
+                  << " "
+                  << std::setw(static_cast<int>(unit_width)) << std::left << sizes[count - 1].unit
                   << "\n";
     }
 }

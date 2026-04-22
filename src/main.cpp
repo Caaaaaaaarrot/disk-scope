@@ -4,7 +4,7 @@
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cout << "Usage: ./disk_scope <path> [--top K] [--type]\n";
+        std::cout << "Usage: ./disk_scope <path> [--top K] [--type] [--precision N]\n";
         return 1;
     }
 
@@ -12,6 +12,13 @@ int main(int argc, char* argv[]) {
 
     Analyzer analyzer;
     auto root = analyzer.analyze(path);
+
+    for (int i = 2; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--precision") == 0 && i + 1 < argc) {
+            int precision = std::stoi(argv[++i]);
+            analyzer.set_precision(precision);
+        }
+    }
 
     for (int i = 2; i < argc; ++i) {
         if (std::strcmp(argv[i], "--top") == 0 && i + 1 < argc) {

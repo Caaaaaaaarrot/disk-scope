@@ -7,7 +7,10 @@
 
 class Analyzer {
 public:
+    Analyzer() = default;
+
     std::shared_ptr<FileNode> analyze(const std::filesystem::path& path);
+    void set_precision(int precision);
 
     void get_top_k_files(const std::shared_ptr<FileNode>& root, int k);
     void get_file_type_stats(const std::shared_ptr<FileNode>& root);
@@ -20,4 +23,6 @@ private:
 
     void collect_types(const std::shared_ptr<FileNode>& node,
                        std::unordered_map<std::string, uintmax_t>& stats);
+
+    int precision_ = 2;
 };
