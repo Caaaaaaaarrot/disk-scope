@@ -7,20 +7,18 @@
 
 class Analyzer {
 public:
-    // 排序枚举
     enum class SortKey {
         SIZE,
         NAME,
         PATH
     };
 
-    // 排序控制
-    void set_sort(SortKey key, bool reverse);
-
     void set_precision(int precision);
+    void set_sort(SortKey key, bool reverse);
 
     std::shared_ptr<FileNode> analyze(const std::filesystem::path& path);
 
+    // 功能
     void list_all_files(const std::shared_ptr<FileNode>& root);
     void get_top_k_files(const std::shared_ptr<FileNode>& root, int k);
     void get_file_type_stats(const std::shared_ptr<FileNode>& root);
@@ -31,17 +29,14 @@ public:
 
 private:
     int precision_ = 2;
-
     SortKey sort_key_ = SortKey::SIZE;
     bool reverse_ = false;
 
-    std::shared_ptr<FileNode> build_tree_parallel(const std::filesystem::path& path);
+    std::shared_ptr<FileNode> build(const std::filesystem::path& path);
+    void scan(const std::shared_ptr<FileNode>& node,
+              const std::filesystem::path& path);
 
-    void scan_node(const std::shared_ptr<FileNode>& node,
-                   const std::filesystem::path& path);
-
-    void finish_node(const std::shared_ptr<FileNode>& node);
-
+    void build_sizes(const std::shared_ptr<FileNode>& node);
     void collect_files(const std::shared_ptr<FileNode>& node,
                        std::vector<std::shared_ptr<FileNode>>& files);
 

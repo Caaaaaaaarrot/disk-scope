@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
 
     Analyzer analyzer;
 
-    bool show_all=false, show_tree=false, show_json=false;
+    bool show_all=false, show_tree=false, show_json=false, interactive=false;
     int top=-1;
     bool reverse=false;
     Analyzer::SortKey sort=Analyzer::SortKey::SIZE;
@@ -40,6 +40,7 @@ int main(int argc, char* argv[]) {
         else if (!strcmp(argv[i],"--tree")) show_tree=true;
         else if (!strcmp(argv[i],"--json")) show_json=true;
         else if (!strcmp(argv[i],"--reverse")) reverse=true;
+        else if (!strcmp(argv[i],"--interactive")) interactive=true;
         else if (!strcmp(argv[i],"--top") && i+1<argc)
             top = std::stoi(argv[++i]);
         else if (!strcmp(argv[i],"--sort") && i+1<argc) {
@@ -62,7 +63,8 @@ int main(int argc, char* argv[]) {
     if (show_all) analyzer.list_all_files(root);
     if (top>0) analyzer.get_top_k_files(root, top);
 
-    if (!show_all && !show_tree && !show_json && top<0)
+    if (interactive) analyzer.interactive_view(root);
+    else if (!show_all && !show_tree && !show_json && top<0)
         analyzer.get_top_k_files(root,10);
 
     return 0;
