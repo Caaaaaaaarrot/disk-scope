@@ -2,125 +2,68 @@
 #include <iostream>
 #include <cstring>
 
-struct Options {
-    std::string path;
+void help() {
+    std::cout << R"(DiskScope v2
 
-    int top_k = -1;
-    bool show_type = false;
-    bool show_all = false;
-    int precision = 2;
-    bool show_help = false;
-};
+Usage:
+  disk_scope <path> [options]
 
-// 打印帮助
-void print_help() {
-    std::cout <<
-    R"(DiskScope - Disk Usage Analyzer
-
-    Usage:
-    disk_scope <path> [options]
-
-    Options:
-    --top K           Show top K largest files
-    --type            Show file type statistics
-    --all             List all files
-    --precision N     Set decimal precision (default: 2)
-    --help            Show this help message
-
-    Examples:
-    disk_scope . --top 10
-    disk_scope . --type
-    disk_scope . --all --precision 4
-    )";
-}
-
-// 参数解析
-bool parse_args(int argc, char* argv[], Options& opt) {
-    if (argc < 2) {
-        return false;
-    }
-
-    for (int i = 1; i < argc; ++i) {
-        if (strcmp(argv[i], "--help") == 0) {
-            opt.show_help = true;
-        } else if (strcmp(argv[i], "--top") == 0) {
-            if (i + 1 >= argc) {
-                std::cerr << "Missing value for --top\n";
-                return false;
-            }
-            opt.top_k = std::stoi(argv[++i]);
-        } else if (strcmp(argv[i], "--type") == 0) {
-            opt.show_type = true;
-        } else if (strcmp(argv[i], "--all") == 0) {
-            opt.show_all = true;
-        } else if (strcmp(argv[i], "--precision") == 0) {
-            if (i + 1 >= argc) {
-                std::cerr << "Missing value for --precision\n";
-                return false;
-            }
-            opt.precision = std::stoi(argv[++i]);
-        } else if (strncmp(argv[i], "--", 2) == 0) {
-            std::cerr << "Unknown option: " << argv[i] << "\n";
-            return false;
-        } else if (opt.path.empty()) {
-            opt.path = argv[i];
-        } else {
-            std::cerr << "Unexpected argument: " << argv[i] << "\n";
-            return false;
-        }
-    }
-
-    if (opt.show_help) {
-        return true;
-    }
-
-    if (opt.path.empty()) {
-        std::cerr << "Missing path argument.\n";
-        return false;
-    }
-
-    return true;
+Options:
+  --all
+  --top K
+  --tree
+  --json
+  --sort name|size|path
+  --reverse
+  --interactive
+  --help
+)";
 }
 
 int main(int argc, char* argv[]) {
-    Options opt;
-
-    if (!parse_args(argc, argv, opt)) {
-        print_help();
+    if (argc < 2) {
+        help();
         return 1;
     }
 
-    if (opt.show_help) {
-        print_help();
-        return 0;
-    }
-
     Analyzer analyzer;
-    analyzer.set_precision(opt.precision);
 
-    auto root = analyzer.analyze(opt.path);
+    bool show_all=false, show_tree=false, show_json=false;
+    int top=-1;
+    bool reverse=false;
+    Analyzer::SortKey sort=Analyzer::SortKey::SIZE;
 
-    bool executed = false;
+    std::string path = argv[1];
 
-    if (opt.top_k > 0) {
-        analyzer.get_top_k_files(root, opt.top_k);
-        executed = true;
+    for (int i=2;i<argc;i++) {
+        if (!strcmp(argv[i],"--all")) show_all=true;
+        else if (!strcmp(argv[i],"--tree")) show_tree=true;
+        else if (!strcmp(argv[i],"--json")) show_json=true;
+        else if (!strcmp(argv[i],"--reverse")) reverse=true;
+        else if (!strcmp(argv[i],"--top") && i+1<argc)
+            top = std::stoi(argv[++i]);
+        else if (!strcmp(argv[i],"--sort") && i+1<argc) {
+            std::string s=argv[++i];
+            if (s=="name") sort=Analyzer::SortKey::NAME;
+            else if (s=="size") sort=Analyzer::SortKey::SIZE;
+            else sort=Analyzer::SortKey::PATH;
+        }
+        else if (!strcmp(argv[i],"--help")) {
+            help(); return 0;
+        }
     }
 
-    if (opt.show_type) {
-        analyzer.get_file_type_stats(root);
-        executed = true;
-    }
+    analyzer.set_sort(sort, reverse);
 
-    if (opt.show_all) {
-        analyzer.list_all_files(root);
-        executed = true;
-    }
+    auto root = analyzer.analyze(path);
 
-    // 默认行为（非常重要）
-    if (!executed) {
-        analyzer.get_top_k_files(root, 10);
-    }
+    if (show_tree) analyzer.print_tree(root);
+    if (show_json) { analyzer.export_json(root); std::cout<<"\n"; }
+    if (show_all) analyzer.list_all_files(root);
+    if (top>0) analyzer.get_top_k_files(root, top);
+
+    if (!show_all && !show_tree && !show_json && top<0)
+        analyzer.get_top_k_files(root,10);
 
     return 0;
 }

@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.10)
-
 project(DiskScope)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include_directories(include)
 
 add_executable(disk_scope
     src/main.cpp
@@ -10,4 +12,8 @@ add_executable(disk_scope
     src/utils.cpp
 )
 
-target_include_directories(disk_scope PRIVATE include)
+if (WIN32)
+    target_link_libraries(disk_scope)
+else()
+    target_link_libraries(disk_scope pthread)
+endif()
